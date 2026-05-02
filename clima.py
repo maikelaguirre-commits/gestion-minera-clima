@@ -1,0 +1,339 @@
+import os
+import json  # <--- Esta es la línea que falta
+from dotenv import load_dotenv
+
+load_dotenv()
+API_KEY = os.getenv("OPENWEATHER_API_KEY")
+FAENAS_CHILE = {
+    "Antofagasta": [
+        {"nombre": "Chuquicamata", "lat": -22.2908, "lon": -68.9011},
+        {"nombre": "Escondida", "lat": -24.2694, "lon": -69.0689},
+        {"nombre": "Zaldívar", "lat": -24.2125, "lon": -69.1128}
+    ],
+    "Atacama": [
+        {"nombre": "Caserones", "lat": -28.1522, "lon": -69.5531},
+        {"nombre": "Candelaria", "lat": -27.5050, "lon": -70.2830}
+    ],
+    "Coquimbo": [
+        {"nombre": "Los Pelambres", "lat": -31.7133, "lon": -70.4850},
+        {"nombre": "Andacollo", "lat": -30.2333, "lon": -71.0833}
+    ],
+    "O'Higgins": [
+        {"nombre": "El Teniente", "lat": -34.0833, "lon": -70.4500}
+    ]
+}
+
+def generar_dashboard():
+    minas_json = json.dumps(FAENAS_CHILE)
+
+    html = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Gestión Térmica y Nutricional</title>
+    <style>
+        :root {
+            --sidebar-dark: #111827;
+            --accent-blue: #3b82f6;
+            --bg-light: #f3f4f6;
+            --white: #ffffff;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-light);
+            color: #1f2937;
+        }
+
+        /* Sidebar - Menú Colapsable */
+        #sidebar {
+            width: 300px;
+            background-color: var(--sidebar-dark);
+            color: white;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .region-group { border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        .region-btn {
+            width: 100%;
+            padding: 18px 24px;
+            background: none;
+            border: none;
+            color: #f3f4f6;
+            text-align: left;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .region-btn:hover { background: rgba(255,255,255,0.05); }
+
+        .region-btn .icon {
+            font-size: 0.8rem;
+            transition: transform 0.3s;
+        }
+
+        .region-btn.open .icon { transform: rotate(180deg); }
+
+        .faena-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .btn-faena {
+            display: block;
+            width: 100%;
+            padding: 12px 24px 12px 48px;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-faena:hover { color: white; background: rgba(255,255,255,0.05); }
+        .btn-faena.active { 
+            color: white; 
+            border-left: 4px solid var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Área de Contenido */
+        #content { flex-grow: 1; padding: 40px; overflow-y: auto; }
+
+        .grid-main {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+    .card:not(#risk-card) {
+    background: var(--white);
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+        .card .label { font-size: 0.75rem; color: #6b7280; font-weight: 700; text-transform: uppercase; }
+        .card .value { font-size: 1.8rem; font-weight: 800; display: block; margin-top: 8px; }
+
+        /* Tarjeta de Riesgo Dinámica */
+        #risk-card { color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+       #risk-card {
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+}
+
+#risk-card.bg-normal {
+    background-color: #10b981 !important;
+}
+
+#risk-card.bg-alerta {
+    background-color: #f59e0b !important;
+}
+
+#risk-card.bg-critico {
+    background-color: #ef4444 !important;
+}
+        /* Secciones de Recomendación */
+        .info-section {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border-left: 6px solid #e5e7eb;
+        }
+
+        .info-section h3 { margin: 0 0 15px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+        .info-section p { line-height: 1.6; color: #374151; margin: 0; }
+
+        .border-nutri { border-left-color: var(--accent-blue); }
+        .border-oper { border-left-color: var(--sidebar-dark); }
+
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="sidebar-header">🏔️ Gestión Minera Chile</div>
+    <div id="nav-menu"></div>
+</div>
+
+<div id="content">
+    <div id="placeholder" style="text-align: center; margin-top: 15% text-align: center; color: #9ca3af;">
+        <h2>Seleccione una Región y Faena</h2>
+        <p>Los protocolos nutricionales se ajustarán según el clima en tiempo real.</p>
+    </div>
+
+    <div id="dashboard-view" style="display: none;">
+    <h1 id="view-faena" style="margin-bottom: 5px;">--</h1>
+    <p id="view-region" style="color: #6b7280; margin-bottom: 30px;"></p>
+    <p id="update-time" style="color: #9ca3af; font-size: 0.8rem;"></p>
+
+        <div class="grid-main">
+            <div class="card"><span class="label">Temperatura</span><span class="value" id="val-t">--</span></div>
+            <div class="card"><span class="label">Sensación</span><span class="value" id="val-s">--</span></div>
+            <div class="card"><span class="label">Humedad</span><span class="value" id="val-h">--</span></div>
+            <div class="card" id="risk-card">
+                <span class="label" style="color: rgba(255,255,255,0.8)">RIESGO</span>
+                <span class="value" id="val-r">--</span>
+            </div>
+        </div>
+
+        <div class="info-section border-nutri">
+            <h3>🍱 Menú y Recomendación Nutricional</h3>
+            <p id="txt-nutri">--</p>
+        </div>
+
+        <div class="info-section border-oper">
+            <h3>⚙️ Medidas Operacionales</h3>
+            <p id="txt-oper">--</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_KEY = "__API_KEY__";
+const DATA = __DATA__;
+
+const menu = document.getElementById("nav-menu");
+
+// Generar Acordeón
+for (let region in DATA) {
+    const div = document.createElement("div");
+    div.className = "region-group";
+
+    const btn = document.createElement("button");
+    btn.className = "region-btn";
+    btn.innerHTML = `<span>${region}</span> <span class="icon">▼</span>`;
+
+    const list = document.createElement("div");
+    list.className = "faena-list";
+
+    DATA[region].forEach(f => {
+        const fBtn = document.createElement("button");
+        fBtn.className = "btn-faena";
+        fBtn.innerText = f.nombre;
+        fBtn.onclick = () => {
+            document.querySelectorAll(".btn-faena").forEach(b => b.classList.remove("active"));
+            fBtn.classList.add("active");
+            consultarClima(region, f);
+        };
+        list.appendChild(fBtn);
+    });
+
+    btn.onclick = () => {
+        const isOpen = btn.classList.contains("open");
+        document.querySelectorAll(".region-btn").forEach(b => b.classList.remove("open"));
+        document.querySelectorAll(".faena-list").forEach(l => l.style.maxHeight = "0px");
+
+        if (!isOpen) {
+            btn.classList.add("open");
+            list.style.maxHeight = list.scrollHeight + "px";
+        }
+    };
+
+    div.appendChild(btn);
+    div.appendChild(list);
+    menu.appendChild(div);
+}
+
+function getProtocolos(t) {
+    if (t >= 30) return {
+        risk: "CRÍTICO", class: "bg-critico",
+        nutri: "MENU HIDRATANTE: Priorizar ensaladas de hoja verde, frutas (sandía/melón) y legumbres frías. ALERTA: Suplementar con bebidas isotónicas cada 2 horas.",
+        oper: "Protocolo de Calor Extremo activo. Pausas de 15 min por cada 45 min de trabajo. Prohibido trabajos en altura no ventilada."
+    };
+    if (t >= 24) return {
+        risk: "MODERADO", class: "bg-alerta",
+        nutri: "MENU BALANCEADO: Aumentar consumo de agua mineral. Proteínas magras a la plancha. Evitar frituras que dificulten la digestión térmica.",
+        oper: "Suministro de agua en punto de trabajo. Uso obligatorio de protector solar cada 3 horas. Ventilación forzada en cabinas."
+    };
+    if (t <= 10) return {
+        risk: "CRÍTICO", class: "bg-critico",
+        nutri: "MENU TÉRMICO: Sopas calóricas (cazuelas), guisos con legumbres y carbohidratos complejos. Bebidas calientes constantes (té/café/chocolate).",
+        oper: "Protocolo de Frío Activo. Ropa térmica obligatoria. Rotación de personal cada 30 min en áreas expuestas a viento."
+    };
+    if (t <= 16) return {
+        risk: "MODERADO", class: "bg-alerta",
+        nutri: "MENU REFORZADO: Priorizar pastas y cereales. Infusiones calientes disponibles en faena. Frutos secos como snack para aporte graso saludable.",
+        oper: "Verificación de calefacción en equipos. Minimizar tiempos de espera en exteriores."
+    };
+    return {
+        risk: "NORMAL", class: "bg-normal",
+        nutri: "MENU ESTÁNDAR: Alimentación balanceada según minuta mensual. Mantener hidratación base de 2 litros diarios.",
+        oper: "Operación bajo parámetros normales. Seguir medidas de seguridad estándar."
+    };
+}
+
+async function consultarClima(reg, f) {
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("dashboard-view").style.display = "block";
+
+    try {
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${f.lat}&lon=${f.lon}&appid=${API_KEY}&units=metric&lang=es`);
+        const d = await res.json();
+        const t = d.main.temp;
+        const prot = getProtocolos(t);
+
+        document.getElementById("view-faena").innerText = f.nombre;
+        document.getElementById("view-region").innerText = "Región de " + reg;
+
+        document.getElementById("val-t").innerText = t.toFixed(1) + "°C";
+        document.getElementById("val-s").innerText = d.main.feels_like.toFixed(1) + "°C";
+        document.getElementById("val-h").innerText = d.main.humidity + "%";
+        const ahora = new Date();
+        document.getElementById("update-time").innerText =
+       "Última actualización: " + ahora.toLocaleTimeString('es-CL');
+        const rCard = document.getElementById("risk-card");
+        rCard.classList.remove("bg-normal", "bg-alerta", "bg-critico");
+        rCard.classList.add(prot.class);
+console.log("Clase aplicada:", prot.class);
+console.log("Clases actuales:", rCard.className);
+        document.getElementById("val-r").innerText = prot.risk;
+
+        document.getElementById("txt-nutri").innerText = prot.nutri;
+        document.getElementById("txt-oper").innerText = prot.oper;
+
+    } catch(e) { alert("Error al obtener datos. Revisa la consola."); }
+}
+</script>
+</body>
+</html>
+"""
+
+  # Así debe quedar el final de la función en clima.py
+    html_final = html.replace("__API_KEY__", API_KEY).replace("__DATA__", minas_json)
+    
+    with open("templates/dashboard.html", "w", encoding="utf-8") as f:
+        f.write(html_final)
+    print("✅ Dashboard completo generado exitosamente.")
+
+if __name__ == "__main__":
+    generar_dashboard()

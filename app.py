@@ -125,6 +125,3 @@ def clima():
 
     return jsonify(data)
 
-if __name__ == "__main__":
-    generar_dashboard()  # <--- Genera la interfaz antes de iniciar
-    app.run(debug=True, port=5000)  # <--- Lanza el localhost en el puerto 5000
